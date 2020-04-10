@@ -181,6 +181,12 @@ class TCPDF {
 	protected $state;
 
 	/**
+	 * This flag is set during cleanup to prevent repetitive call.
+	 * @protected
+	 */
+	protected $destroyed = 0;
+
+	/**
 	 * Compression flag.
 	 * @protected
 	 */
@@ -7767,6 +7773,10 @@ class TCPDF {
 	 * @since 4.5.016 (2009-02-24)
 	 */
 	public function _destroy($destroyall=false, $preserve_objcopy=false) {
+		if ($this->destroyed) {
+			return;
+		}
+
 		// restore internal encoding
 		if (isset($this->internal_encoding) AND !empty($this->internal_encoding)) {
 			mb_internal_encoding($this->internal_encoding);
@@ -7815,6 +7825,7 @@ class TCPDF {
 				}
 			}
 		}
+		$this->destroyed = 1;
 	}
 
 	/**
@@ -21731,13 +21742,16 @@ Putting 1 is equivalent to putting 0 and calling Ln() just after. Default value:
 	public function rollbackTransaction($self=false) {
 		if (isset($this->objcopy)) {
 			$this->_destroy(true, true);
+			$objcopy = $this->objcopy;
 			if ($self) {
-				$objvars = get_object_vars($this->objcopy);
+				$objvars = get_object_vars($objcopy);
 				foreach ($objvars as $key => $value) {
 					$this->$key = $value;
 				}
+				$objcopy->_destroy(true, true);
+				return $this;
 			}
-			return $this->objcopy;
+			return $objcopy;
 		}
 		return $this;
 	}
